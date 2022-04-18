@@ -1,33 +1,37 @@
 pipeline {
     agent any
 
-    stages {
-        stage('Compile Stage') {
-
-            steps {
-                withMaven (maven:'maven 3.8.1')
-                sh 'mvn clean compile'
-            }
-        }
+    parameters {
+        booleanParam(defaultValue: true, description: 'run auth test', name: 'auth')
+        booleanParam(defaultValue: false, description: 'run promo test', name: 'promo')
     }
 
     stages {
-            stage('Testing Stage') {
-
-                steps {
-                    withMaven (maven:'maven 3.8.1')
-                    sh 'mvn test'
-                }
+        stage('auth test') {
+            when {
+                expression { return params.auth }
+            }
+            steps {
+                sh "mvn -Dtest=auth.** verify"
             }
         }
-
-    stages {
-            stage('Deployment Stage') {
-
-                 steps {
-                      withMaven (maven:'maven 3.8.1')
-                        sh 'mvn deploy'
-                    }
-                }
-            }
+        stage('promo test') {
+             when {
+                 expression { return params.promo }
+             }
+             steps {
+                  script{
+                    sh "mvn -Dtest=promo.** verify"
+                  }
+             }
+        }
+    }
+    post {
+        always {
+            allure([
+                reportBuildPolicy: 'ALWAYS',
+                results: [[path: 'target/allure-results']]
+            ])
+        }
+    }
 }
